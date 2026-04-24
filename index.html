@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -183,14 +184,13 @@
     </div>
 
     <script>
-        const SB_URL = "https://kzyhgtcwdhrrjnftelqt.supabase.co";
-        // Исправленный ключ из твоего проекта
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eWhndGN3ZWhycmpuZnRlbHF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgxNzU0OTMsImV4cCI6MjA1Mzc1MTQ5M30.6iK6WvBNoXN-E_m70qG-W7BvX7eY6X8bZ5UlKTA";
+        const SB_URL = "Https://lhsfoordcitznqtwzyex.supabase.co";
+        const SB_KEY = "sb_publishable_oNBRtFepspejeyvHY5KNfA_JsKfFl5Y";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
         let bal = 0.00; let userId = 0; let userName = "User"; let currentLang = 'RU';
         let miniCount = 0; let megaCount = 0; let refPending = 0;
-        let referrerId = null; let exists = false; let isLoaded = false;
+        let referrerId = null; let isLoaded = false;
         let selectedPrice = 25; let totalTasksDone = 0;
         let dailyStreak = 0; let lastDaily = null;
         let localHistory = [];
@@ -249,32 +249,41 @@
                 daily_streak: dailyStreak, 
                 last_daily: lastDaily 
             };
-            if (exists) {
-                await supabaseClient.from('users').update(payload).eq('user_id', userId);
-            } else {
+            
+            const { error: updateError } = await supabaseClient.from('users').update(payload).eq('user_id', userId);
+            
+            if (updateError) {
                 await supabaseClient.from('users').insert([{ user_id: userId, ...payload, referrer_id: referrerId }]);
-                exists = true;
             }
         }
 
         async function loadUserData() {
             const { data, error } = await supabaseClient.from('users').select('*').eq('user_id', userId).maybeSingle();
+            
             if (data) {
-                bal = data.balance || 0; miniCount = data.mini_ads || 0; megaCount = data.mega_ads || 0;
-                refPending = data.ref_pending || 0; dailyStreak = data.daily_streak || 0;
-                lastDaily = data.last_daily; referrerId = data.referrer_id; exists = true;
-                totalTasksDone = miniCount + megaCount; updateUI(); updateAdsUI(); updateDailyUI();
+                bal = data.balance || 0; 
+                miniCount = data.mini_ads || 0; 
+                megaCount = data.mega_ads || 0;
+                refPending = data.ref_pending || 0; 
+                dailyStreak = data.daily_streak || 0;
+                lastDaily = data.last_daily; 
+                referrerId = data.referrer_id;
+                totalTasksDone = miniCount + megaCount; 
+                updateUI(); updateAdsUI(); updateDailyUI();
                 document.getElementById('ref-pending').innerText = refPending.toFixed(2);
             } else {
                 const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
                 referrerId = (startParam && !isNaN(startParam)) ? parseInt(startParam) : null;
+                isLoaded = true;
                 await syncWithDB();
             }
+
             const { data: lvl1Nodes } = await supabaseClient.from('users').select('user_id').eq('referrer_id', userId);
             const count1 = lvl1Nodes ? lvl1Nodes.length : 0;
             document.getElementById('cnt1').innerText = count1;
             document.getElementById('stats-refs').innerText = count1;
-            isLoaded = true; loadLeaderboard();
+            isLoaded = true; 
+            loadLeaderboard();
         }
 
         function addHistory(type, amount) {
@@ -297,19 +306,31 @@
         function updateDailyUI() {
             const grid = document.getElementById('daily-grid').children;
             const btn = document.getElementById('claim-daily');
-            for(let i=0; i<7; i++) { grid[i].classList.remove('active'); if(i < dailyStreak) grid[i].style.background = "var(--success)"; }
+            for(let i=0; i<7; i++) { 
+                grid[i].classList.remove('active'); 
+                if(i < dailyStreak) grid[i].style.background = "var(--success)"; 
+            }
             if(dailyStreak < 7) grid[dailyStreak].classList.add('active');
             if(lastDaily) {
                 const diff = (new Date() - new Date(lastDaily)) / (1000 * 60 * 60);
-                if(diff < 24) { btn.disabled = true; btn.innerText = currentLang === 'RU' ? "ЗАВТРА" : "TOMORROW"; btn.style.background = "#334155"; }
+                if(diff < 24) { 
+                    btn.disabled = true; 
+                    btn.innerText = currentLang === 'RU' ? "ЗАВТРА" : "TOMORROW"; 
+                    btn.style.background = "#334155"; 
+                }
             }
         }
 
         async function claimDailyReward() {
             const rewards = [5, 10, 15, 20, 25, 30, 50];
             const amount = rewards[dailyStreak];
-            bal += amount; dailyStreak = (dailyStreak + 1) % 7; lastDaily = new Date().toISOString();
-            addHistory('Daily Bonus', amount); updateUI(); updateDailyUI(); await syncWithDB();
+            bal += amount; 
+            dailyStreak = (dailyStreak + 1) % 7; 
+            lastDaily = new Date().toISOString();
+            addHistory('Daily Bonus', amount); 
+            updateUI(); 
+            updateDailyUI(); 
+            await syncWithDB();
         }
 
         async function loadLeaderboard() {
@@ -330,18 +351,32 @@
         }
 
         async function processReward(amount, type = 'Task') {
-            bal += amount; if(amount > 0 && amount !== 10) totalTasksDone++;
-            addHistory(type, amount); updateUI(); await syncWithDB();
+            bal += amount; 
+            if(amount > 0 && amount !== 10) totalTasksDone++;
+            addHistory(type, amount); 
+            updateUI(); 
+            await syncWithDB();
+            
             if (referrerId) {
                 const { data: refUser } = await supabaseClient.from('users').select('ref_pending').eq('user_id', referrerId).maybeSingle();
-                if (refUser) await supabaseClient.from('users').update({ ref_pending: (refUser.ref_pending || 0) + (amount * 0.15) }).eq('user_id', referrerId);
+                if (refUser) {
+                    await supabaseClient.from('users').update({ 
+                        ref_pending: (refUser.ref_pending || 0) + (amount * 0.15) 
+                    }).eq('user_id', referrerId);
+                }
             }
         }
 
         function watchAd(type) {
-            if(type === 'mini' && miniCount < 50) { miniCount++; processReward(1, 'Ad Watch'); updateAdsUI(); } 
-            else if(type === 'mega' && megaCount < 100) { megaCount++; processReward(1, 'Ad Watch'); updateAdsUI(); }
-            else alert("Limit reached");
+            if(type === 'mini' && miniCount < 50) { 
+                miniCount++; 
+                processReward(1, 'Ad Watch'); 
+                updateAdsUI(); 
+            } else if(type === 'mega' && megaCount < 100) { 
+                megaCount++; 
+                processReward(1, 'Ad Watch'); 
+                updateAdsUI(); 
+            } else alert("Limit reached");
         }
 
         function updateAdsUI() {
@@ -349,13 +384,15 @@
             document.getElementById('mega-count').innerText = megaCount;
             document.getElementById('mini-bar').style.width = (miniCount / 50 * 100) + '%';
             document.getElementById('mega-bar').style.width = (megaCount / 100 * 100) + '%';
-            document.getElementById('stats-tasks').innerText = totalTasksDone;
         }
 
         function selectCat(el, price) {
             document.querySelectorAll('.category-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected'); selectedPrice = price; updateTotal();
+            el.classList.add('selected'); 
+            selectedPrice = price; 
+            updateTotal();
         }
+
         function updateTotal() {
             const count = parseInt(document.getElementById('create-count').value) || 0;
             document.getElementById('total-cost').innerText = `${translations[currentLang].total_label} ${count * selectedPrice} ne2p`;
@@ -366,10 +403,21 @@
             const count = parseInt(document.getElementById('create-count').value);
             const cost = count * selectedPrice;
             if (bal < cost) return alert("No balance");
-            bal -= cost; addHistory('Order', -cost); updateUI();
-            await supabaseClient.from('users').update({ balance: bal }).eq('user_id', userId);
-            await supabaseClient.from('tasks').insert([{ creator_id: userId, type: 'sub', link: link, price: selectedPrice, remaining_count: count }]);
-            alert("Success!"); nav('p-home');
+            
+            bal -= cost; 
+            addHistory('Order', -cost); 
+            updateUI();
+            await syncWithDB();
+            
+            await supabaseClient.from('tasks').insert([{ 
+                creator_id: userId, 
+                type: 'sub', 
+                link: link, 
+                price: selectedPrice, 
+                remaining_count: count 
+            }]);
+            alert("Success!"); 
+            nav('p-home');
         }
 
         async function loadGlobalTasks() {
@@ -393,18 +441,33 @@
         function showSubTask() {
             document.getElementById('active-task-area').innerHTML = `<div class="card-main" style="text-align:left; border-left:4px solid var(--accent-color)"><b>${translations[currentLang].sub_task}</b><br>+15 ne2p<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-blue" style="padding:8px;" onclick="window.open('https://t.me/Ne2pTap', '_blank')">1. JOIN</button><button class="btn-green" style="padding:8px;" id="chk-btn" onclick="checkSub()">2. CHECK</button></div></div>`;
         }
-        function checkSub() { const b = document.getElementById('chk-btn'); b.innerText = "..."; setTimeout(() => { processReward(15, 'Sub Reward'); b.innerText = "DONE ✅"; }, 1500); }
+        function checkSub() { 
+            const b = document.getElementById('chk-btn'); 
+            b.innerText = "..."; 
+            setTimeout(() => { 
+                processReward(15, 'Sub Reward'); 
+                b.innerText = "DONE ✅"; 
+            }, 1500); 
+        }
 
         function collectRefProfit() {
             if (refPending > 0) {
-                bal += refPending; let s = refPending; refPending = 0; addHistory('Ref Collect', s);
-                document.getElementById('ref-pending').innerText = "0.00"; updateUI();
-                supabaseClient.from('users').update({ balance: bal, ref_pending: 0 }).eq('user_id', userId);
+                bal += refPending; 
+                let s = refPending; 
+                refPending = 0; 
+                addHistory('Ref Collect', s);
+                document.getElementById('ref-pending').innerText = "0.00"; 
+                updateUI();
+                syncWithDB();
+                supabaseClient.from('users').update({ ref_pending: 0 }).eq('user_id', userId);
                 alert("Collected: " + s.toFixed(2));
             }
         }
 
-        function updateUI() { document.getElementById('b-ne2p').innerText = bal.toFixed(2); document.getElementById('stats-tasks').innerText = totalTasksDone; }
+        function updateUI() { 
+            document.getElementById('b-ne2p').innerText = bal.toFixed(2); 
+            document.getElementById('stats-tasks').innerText = totalTasksDone; 
+        }
         
         function nav(id, el) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -426,7 +489,9 @@
                 userName = user.first_name;
                 document.getElementById('user-full-name').innerText = userName + (user.last_name ? ' ' + user.last_name : '');
                 if (user.photo_url) document.getElementById('user-avatar').src = user.photo_url;
-            } else { document.getElementById('user-full-name').innerText = "Boris User"; }
+            } else { 
+                document.getElementById('user-full-name').innerText = "Boris User"; 
+            }
             if(tg) { tg.expand(); tg.ready(); }
             document.getElementById('ref-link').innerText = "https://t.me/ne2p_bot?start=" + userId;
             loadUserData();
